@@ -302,3 +302,16 @@ test.describe("Booking - DeleteBooking", () => {
     expect(deleteResponse.status()).toBe(403);
   });
 });
+
+// Add this in config.js and also run as npx playwright test --project=api as this url does not have any UI 
+  // projects: [
+  //   {
+  //     name: 'api',
+  //     use: {
+  //       baseURL: 'https://restful-booker.herokuapp.com',
+  //       extraHTTPHeaders: {
+  //         'Content-Type': 'application/json',
+  //         Accept: 'application/json',
+  //       },
+  //     },
+  //   },
