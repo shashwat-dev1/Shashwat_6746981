@@ -22,31 +22,22 @@ stages {
         }
     }
 
-    stage('Verify Structure') {
-        steps {
-            dir("${PROJECT_DIR}") {
-                bat 'dir'
-            }
-        }
-    }
-
     stage('Install Dependencies') {
         steps {
             dir("${PROJECT_DIR}") {
-                bat 'npm install'
-                bat 'npx playwright install'
+                bat "npm install"
+                bat "npx playwright install"
             }
         }
     }
 
-    stage('Run Playwright Tests') {
+    stage('Run Tests') {
         steps {
             dir("${PROJECT_DIR}") {
                 script {
-                    def status = bat(script: 'npx playwright test', returnStatus: true)
-
+                    def status = bat(script: "npx playwright test", returnStatus: true)
                     if (status != 0) {
-                        echo "Test execution failed, marking build UNSTABLE but continuing..."
+                        echo "Tests failed, marking build UNSTABLE"
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
@@ -56,12 +47,8 @@ stages {
 }
 
 post {
-
     always {
-        echo 'Publishing Playwright HTML Report...'
-
         dir("${PROJECT_DIR}") {
-
             publishHTML(target: [
                 reportDir: 'playwright-report',
                 reportFiles: 'index.html',
@@ -73,18 +60,6 @@ post {
 
             archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true
         }
-    }
-
-    success {
-        echo 'Build SUCCESS: All stages executed correctly.'
-    }
-
-    unstable {
-        echo 'Build UNSTABLE: Tests failed but pipeline continued.'
-    }
-
-    failure {
-        echo 'Build FAILURE: Critical issue occurred.'
     }
 }
 ```
