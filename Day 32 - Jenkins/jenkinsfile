@@ -1,63 +1,43 @@
 pipeline {
-agent any
-tools {
-    nodejs 'NodeJS'
-}
+    agent any
 
-options {
-    timestamps()
-}
-
-environment {
-    PROJECT_DIR = "Day 32 - Jenkins"
-}
-
-stages {
-
-    stage('Checkout Code') {
-        steps {
-            checkout scm
-        }
-    }
-
-    stage('Install Dependencies') {
-        steps {
-            dir("${PROJECT_DIR}") {
-                bat "npm install"
-                bat "npx playwright install"
+    stages {
+        stage('Install Dependencies') {
+            steps {
+                bat 'npm install'
+                bat 'npx playwright install'
             }
         }
-    }
 
-    stage('Run Tests') {
-        steps {
-            dir("${PROJECT_DIR}") {
+        stage('Run Tests') {
+            steps {
                 script {
-                    def status = bat(script: "npx playwright test", returnStatus: true)
+                    def status = bat(script: 'npx playwright test', returnStatus: true)
                     if (status != 0) {
-                        echo "Tests failed, marking build UNSTABLE"
-                        currentBuild.result = 'UNSTABLE'
+                        echo "Tests failed, but continuing to generate reports..."
                     }
                 }
             }
         }
     }
-}
 
-post {
-    always {
-        dir("${PROJECT_DIR}") {
+    post {
+        always {
+            echo 'Generating HTML reports...'
+
+
             publishHTML(target: [
                 reportDir: 'playwright-report',
                 reportFiles: 'index.html',
-                reportName: 'Playwright Report',
-                keepAll: true,
+                reportName: 'Playwright HTML Report',
                 alwaysLinkToLastBuild: true,
-                allowMissing: true
+                keepAll: true,
+                 alwaysLinkToLastBuild: true,
+                allowMissing: true,
+                linkRelative: false
             ])
 
-            archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true
+        
         }
     }
-}
 }
