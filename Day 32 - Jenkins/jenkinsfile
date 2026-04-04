@@ -1,20 +1,42 @@
+```groovy
 pipeline {
     agent any
 
+    tools {
+        nodejs 'NodeJS'   // Ensure this matches Jenkins Global Tool Configuration
+    }
+
+    options {
+        timestamps()
+    }
+
     stages {
-        stage('Install Dependencies') {
+
+        stage('Checkout Code') {
             steps {
-                bat 'npm install'
-                bat 'npx playwright install'
+                checkout scm
             }
         }
 
-        stage('Run Tests') {
+        stage('Install Dependencies') {
             steps {
-                script {
-                    def status = bat(script: 'npx playwright test', returnStatus: true)
-                    if (status != 0) {
-                        echo "Tests failed, but continuing to generate reports..."
+                dir('Day 32 - Jenkins') {
+                    bat 'npm install'
+                    bat 'npx playwright install'
+                }
+            }
+        }
+
+        stage('Run Playwright Tests') {
+            steps {
+                dir('Day 32 - Jenkins') {
+                    script {
+                        def status = bat(script: 'npx playwright test', returnStatus: true)
+
+                        if (status != 0) {
+                            echo "Test execution failed, proceeding to reporting..."
+                            currentBuild.result = 'UNSTABLE'
+                        }
                     }
                 }
             }
@@ -23,21 +45,36 @@ pipeline {
 
     post {
         always {
-            echo 'Generating HTML reports...'
+            echo 'Publishing Playwright HTML Report...'
 
+            dir('Day 32 - Jenkins') {
 
-            publishHTML(target: [
-                reportDir: 'playwright-report',
-                reportFiles: 'index.html',
-                reportName: 'Playwright HTML Report',
-                alwaysLinkToLastBuild: true,
-                keepAll: true,
-                 alwaysLinkToLastBuild: true,
-                allowMissing: true,
-                linkRelative: false
-            ])
+                // Publish HTML Report
+                publishHTML(target: [
+                    reportDir: 'playwright-report',
+                    reportFiles: 'index.html',
+                    reportName: 'Playwright Report',
+                    keepAll: true,
+                    alwaysLinkToLastBuild: true,
+                    allowMissing: true
+                ])
 
-        
+                // Archive report artifacts for traceability
+                archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true
+            }
+        }
+
+        success {
+            echo 'Pipeline executed successfully.'
+        }
+
+        unstable {
+            echo 'Pipeline unstable due to test failures.'
+        }
+
+        failure {
+            echo 'Pipeline failed. Check logs for debugging.'
         }
     }
 }
+```
