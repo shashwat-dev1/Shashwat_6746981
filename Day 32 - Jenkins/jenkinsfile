@@ -1,80 +1,92 @@
-```groovy
 pipeline {
-    agent any
+agent any
 
-    tools {
-        nodejs 'NodeJS'   // Ensure this matches Jenkins Global Tool Configuration
+```
+tools {
+    nodejs 'NodeJS'
+}
+
+options {
+    timestamps()
+}
+
+environment {
+    PROJECT_DIR = "Day 32 - Jenkins"
+}
+
+stages {
+
+    stage('Checkout Code') {
+        steps {
+            checkout scm
+        }
     }
 
-    options {
-        timestamps()
+    stage('Verify Structure') {
+        steps {
+            dir("${PROJECT_DIR}") {
+                bat 'dir'
+            }
+        }
     }
 
-    stages {
-
-        stage('Checkout Code') {
-            steps {
-                checkout scm
+    stage('Install Dependencies') {
+        steps {
+            dir("${PROJECT_DIR}") {
+                bat 'npm install'
+                bat 'npx playwright install'
             }
         }
+    }
 
-        stage('Install Dependencies') {
-            steps {
-                dir('Day 32 - Jenkins') {
-                    bat 'npm install'
-                    bat 'npx playwright install'
-                }
-            }
-        }
+    stage('Run Playwright Tests') {
+        steps {
+            dir("${PROJECT_DIR}") {
+                script {
+                    def status = bat(script: 'npx playwright test', returnStatus: true)
 
-        stage('Run Playwright Tests') {
-            steps {
-                dir('Day 32 - Jenkins') {
-                    script {
-                        def status = bat(script: 'npx playwright test', returnStatus: true)
-
-                        if (status != 0) {
-                            echo "Test execution failed, proceeding to reporting..."
-                            currentBuild.result = 'UNSTABLE'
-                        }
+                    if (status != 0) {
+                        echo "Test execution failed, marking build UNSTABLE but continuing..."
+                        currentBuild.result = 'UNSTABLE'
                     }
                 }
             }
         }
     }
+}
 
-    post {
-        always {
-            echo 'Publishing Playwright HTML Report...'
+post {
 
-            dir('Day 32 - Jenkins') {
+    always {
+        echo 'Publishing Playwright HTML Report...'
 
-                // Publish HTML Report
-                publishHTML(target: [
-                    reportDir: 'playwright-report',
-                    reportFiles: 'index.html',
-                    reportName: 'Playwright Report',
-                    keepAll: true,
-                    alwaysLinkToLastBuild: true,
-                    allowMissing: true
-                ])
+        dir("${PROJECT_DIR}") {
 
-                // Archive report artifacts for traceability
-                archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true
-            }
+            publishHTML(target: [
+                reportDir: 'playwright-report',
+                reportFiles: 'index.html',
+                reportName: 'Playwright Report',
+                keepAll: true,
+                alwaysLinkToLastBuild: true,
+                allowMissing: true
+            ])
+
+            archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true
         }
+    }
 
-        success {
-            echo 'Pipeline executed successfully.'
-        }
+    success {
+        echo 'Build SUCCESS: All stages executed correctly.'
+    }
 
-        unstable {
-            echo 'Pipeline unstable due to test failures.'
-        }
+    unstable {
+        echo 'Build UNSTABLE: Tests failed but pipeline continued.'
+    }
 
-        failure {
-            echo 'Pipeline failed. Check logs for debugging.'
-        }
+    failure {
+        echo 'Build FAILURE: Critical issue occurred.'
     }
 }
 ```
+
+}
