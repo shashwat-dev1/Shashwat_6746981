@@ -1,21 +1,40 @@
 pipeline {
     agent any
 
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    environment {
+        REPORT_DIR = 'Day 32 - Jenkins\\playwright-report'
+        WORK_DIR   = 'Day 32 - Jenkins'
+    }
+
     stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code...'
+                checkout scm
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
-                bat 'npm install'
-                bat 'npx playwright install'
+                dir("${env.WORK_DIR}") {
+                    echo 'Installing npm dependencies...'
+                    bat 'npm install'
+                    bat 'npx playwright install --with-deps'
+                }
             }
         }
 
         stage('Run Tests') {
             steps {
-                script {
-                    def status = bat(script: 'npx playwright test', returnStatus: true)
-                    if (status != 0) {
-                        echo "Tests failed, but continuing to generate reports..."
-                    }
+                dir("${env.WORK_DIR}") {
+                    echo 'Running Playwright tests...'
+                    bat 'npx playwright test --reporter=html'
                 }
             }
         }
@@ -23,21 +42,23 @@ pipeline {
 
     post {
         always {
-            echo 'Generating HTML reports...'
-
-
-            publishHTML(target: [
-                reportDir: 'playwright-report',
-                reportFiles: 'index.html',
-                reportName: 'Playwright HTML Report',
+            echo 'Publishing HTML report...'
+            publishHTML([
+                allowMissing: true,
                 alwaysLinkToLastBuild: true,
                 keepAll: true,
-                 alwaysLinkToLastBuild: true,
-                allowMissing: true,
-                linkRelative: false
+                reportDir: "${env.REPORT_DIR}",
+                reportFiles: 'index.html',
+                reportName: 'Playwright HTML Report'
             ])
+        }
 
-        
+        success {
+            echo '✅ Pipeline completed successfully!'
+        }
+
+        failure {
+            echo '❌ Pipeline failed. Check the Playwright HTML report for details.'
         }
     }
 }
